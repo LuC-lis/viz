@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viz · 交互式可视化</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d1d1f; --muted: #6b6b70; --card: #f7f7f9;
+    --border: #e3e3e8; --accent: #2f6df6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a; --fg: #ececf1; --muted: #9a9aa3; --card: #1f1f25;
+      --border: #2e2e36; --accent: #7aa2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 48px 24px 64px; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  a.card {
+    display: block; padding: 16px 18px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--card); color: inherit;
+    text-decoration: none; transition: border-color .15s, transform .15s;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .t { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+  .d { color: var(--muted); font-size: 13px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Viz</h1>
+  <p class="lede">独立的交互式 HTML 可视化托管站，用于嵌入 Notion 等文档工具。每个页面都是自包含的单文件。</p>
+  <ul>
+    <li>
+      <a class="card" href="canyon.html">
+        <div class="t">病态函数的 SGD 收敛过程</div>
+        <div class="d">f(x, y) = 0.5·(10x² + y²)，Hessian 条件数 10。3D 损失曲面 + 随机梯度下降轨迹，可鼠标旋转缩放。</div>
+      </a>
+    </li>
+  </ul>
+  <footer>新增页面：把单文件 HTML 放进仓库根目录，然后在此处加一张卡片。</footer>
+</div>
+</body>
+</html>

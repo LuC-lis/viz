@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Ill-Conditioned SGD 3D 可视化</title>
+    <!-- 引入 Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h2 { text-align: center; color: #333; }
+        #plot { width: 100%; height: 800px; }
+        .info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>病态函数 (Ill-conditioned) 的 SGD 收敛过程</h2>
+    <div class="info">
+        <p>损失函数: <b>f(x, y) = 0.5 * (10x² + y²)</b> (Hessian条件数为 10)</p>
+        <p>你可以使用鼠标左键旋转、滚轮缩放 3D 图形。观察红点在 x 方向（陡峭）的震荡和 y 方向（平缓）的缓慢移动。</p>
+    </div>
+    
+    <div id="plot"></div>
+
+    <script>
+        // 1. 定义损失函数 f(x, y) = 0.5 * (A*x^2 + B*y^2)
+        const A = 10; // x方向的曲率（陡峭）
+        const B = 1;  // y方向的曲率（平缓）
+        const f = (x, y) => 0.5 * (A * x * x + B * y * y);
+
+        // 2. 生成 3D 表面的网格数据
+        const xVals = [];
+        const yVals = [];
+        const zVals = [];
+        const step = 0.5;
+        
+        for (let x = -8; x <= 8; x += step) {
+            for (let y = -8; y <= 8; y += step) {
+                xVals.push(x);
+                yVals.push(y);
+                zVals.push(f(x, y));
+            }
+        }
+
+        // 3. 模拟随机梯度下降 (SGD)
+        let currentX = 7.5;
+        let currentY = -7.5;
+        const learningRate = 0.15; // 学习率
+        const iterations = 80;
+        
+        const pathX = [currentX];
+        const pathY = [currentY];
+        const pathZ = [f(currentX, currentY)];
+
+        for (let i = 0; i < iterations; i++) {
+            // 计算真实梯度
+            let gradX = A * currentX;
+            let gradY = B * currentY;
+
+            // 引入 SGD 的随机噪声 (模拟 Mini-batch 梯度估计的方差)
+            const noiseScale = 0.5; 
+            const noiseX = (Math.random() - 0.5) * noiseScale;
+            const noiseY = (Math.random() - 0.5) * noiseScale;
+
+            // 更新参数
+            currentX = currentX - learningRate * (gradX + noiseX);
+            currentY = currentY - learningRate * (gradY + noiseY);
+
+            // 记录路径
+            pathX.push(currentX);
+            pathY.push(currentY);
+            pathZ.push(f(currentX, currentY));
+        }
+
+        // 4. 配置 Plotly 图形
+        const surfaceTrace = {
+            x: xVals,
+            y: yVals,
+            z: zVals,
+            type: 'mesh3d', // 使用 mesh3d 可以更好地处理非均匀网格
+            intensity: zVals,
+            colorscale: 'Viridis',
+            opacity: 0.85,
+            name: 'Loss Surface',
+            showscale: false
+        };
+
+        const pathTrace = {
+            x: pathX,
+            y: pathY,
+            z: pathZ,
+            type: 'scatter3d',
+            mode: 'lines+markers',
+            marker: {
+                size: 3,
+                color: 'red',
+                opacity: 0.8
+            },
+            line: {
+                color: 'red',
+                width: 3
+            },
+            name: 'SGD Path'
+        };
+        
+        // 添加起始点
+        const startTrace = {
+            x: [pathX[0]],
+            y: [pathY[0]],
+            z: [pathZ[0]],
+            type: 'scatter3d',
+            mode: 'markers',
+            marker: { size: 8, color: 'blue' },
+            name: 'Start'
+        };
+
+        const data = [surfaceTrace, pathTrace, startTrace];
+
+        const layout = {
+            scene: {
+                xaxis: { title: 'x (陡峭方向)' },
+                yaxis: { title: 'y (平缓方向)' },
+                zaxis: { title: 'f(x, y)' },
+                camera: {
+                    eye: { x: 1.5, y: -1.5, z: 0.8 } // 调整视角以看清震荡
+                }
+            },
+            margin: { l: 0, r: 0, b: 0, t: 0 },
+            paper_bgcolor: '#f4f4f9',
+            plot_bgcolor: '#f4f4f9'
+        };
+
+        // 渲染图形
+        Plotly.newPlot('plot', data, layout, {responsive: true});
+    </script>
+</body>
+</html>
