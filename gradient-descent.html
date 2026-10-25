@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>梯度下降 · 二维直观演示</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #0a0e18;
+    color: #e2e8f5;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { display: flex; height: 100vh; height: 100%; }
+
+  .stage {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+  canvas { display: block; touch-action: none; cursor: crosshair; }
+
+  .legend {
+    position: absolute;
+    left: 20px; bottom: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 12px;
+    color: #8ea3c4;
+    pointer-events: none;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  .panel {
+    width: 330px;
+    flex: none;
+    padding: 26px 24px 30px;
+    background: #0f1523;
+    border-left: 1px solid #1d2739;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .panel h1 {
+    font-size: 17px;
+    margin: 0 0 6px;
+    letter-spacing: .5px;
+    font-weight: 650;
+  }
+  .panel .sub {
+    font-size: 12px;
+    color: #7d8fb0;
+    margin: 0 0 18px;
+    line-height: 1.7;
+  }
+
+  .formula {
+    background: #131b2c;
+    border: 1px solid #1f2b40;
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 14px;
+    color: #7dd3fc;
+    margin-bottom: 22px;
+  }
+  .formula b { color: #fbbf24; font-weight: 600; }
+
+  .ctrl { margin-bottom: 18px; }
+  .ctrl .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: #9db0d0;
+    margin-bottom: 8px;
+  }
+  .ctrl .head b {
+    font-family: ui-monospace, monospace;
+    color: #fbbf24;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 4px;
+    background: #22304a;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #38bdf8;
+    cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(56,189,248,.16);
+    transition: box-shadow .15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 6px rgba(56,189,248,.25); }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border: none;
+    border-radius: 50%; background: #38bdf8; cursor: pointer;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 22px 0 20px;
+  }
+  .stat {
+    background: #131b2c;
+    border: 1px solid #1d2739;
+    border-radius: 9px;
+    padding: 9px 11px;
+  }
+  .stat span { display: block; font-size: 11px; color: #6f83a4; margin-bottom: 3px; }
+  .stat b {
+    font-family: ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: #cfe0f8;
+  }
+  .stat b.hl { color: #fbbf24; }
+  .stat b.gr { color: #34d399; }
+
+  .btns { display: flex; gap: 8px; }
+  button {
+    flex: 1;
+    padding: 11px 8px;
+    border-radius: 9px;
+    border: 1px solid #26344c;
+    background-color: #172033;
+    color: #cfe0f8;
+    font-size: 13.5px;
+    font-family: inherit;
+    font-weight: 550;
+    cursor: pointer;
+    transition: .15s;
+  }
+  button:hover { background-color: #1e2b42; border-color: #33456a; }
+  button.primary {
+    background-color: #0e7490;
+    border-color: #0e7490;
+    color: #e0f7ff;
+  }
+  button.primary:hover { background-color: #0891b2; border-color: #0891b2; }
+
+  .status {
+    margin-top: 16px;
+    font-size: 12.5px;
+    min-height: 18px;
+    color: #6f83a4;
+    text-align: center;
+    transition: .2s;
+  }
+  .status.ok { color: #34d399; }
+  .status.warn { color: #fb7185; }
+
+  /* 窄（Notion 侧栏 / 手机）：上下排布 */
+  @media (max-width: 760px) {
+    .wrap { flex-direction: column; }
+    .stage { height: 52%; min-height: 200px; }
+    .panel {
+      width: 100%;
+      flex: 1;
+      border-left: none;
+      border-top: 1px solid #1d2739;
+      padding: 16px 18px 20px;
+    }
+    .panel h1 { font-size: 15px; }
+    .panel .sub { margin-bottom: 12px; }
+    .formula { margin-bottom: 14px; font-size: 13px; padding: 10px 12px; }
+    .ctrl { margin-bottom: 12px; }
+    .stats { margin: 14px 0 14px; }
+    .legend { font-size: 11px; gap: 10px; left: 14px; bottom: 12px; }
+  }
+
+  /* 极矮（Notion embed 默认高度偏小）：整体压缩 */
+  @media (max-height: 520px) and (min-width: 761px) {
+    .panel { padding: 16px 18px 18px; }
+    .panel h1 { font-size: 15px; }
+    .panel .sub { display: none; }
+    .formula { margin-bottom: 12px; padding: 8px 12px; font-size: 13px; }
+    .ctrl { margin-bottom: 10px; }
+    .stats { margin: 12px 0; gap: 6px; }
+    .stat { padding: 7px 9px; }
+    .status { margin-top: 10px; font-size: 12px; }
+    .legend { font-size: 11px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="legend">
+      <span><i class="dot" style="background:#38bdf8"></i>目标函数 f(x)</span>
+      <span><i class="dot" style="background:#f472b6"></i>切线（斜率 = f′(x)）</span>
+      <span><i class="dot" style="background:#34d399"></i>负梯度方向</span>
+      <span><i class="dot" style="background:#fbbf24"></i>当前点</span>
+    </div>
+  </div>
+
+  <aside class="panel">
+    <h1>梯度下降 · 核心思想</h1>
+    <p class="sub">梯度指向函数上升最快的方向，所以「沿负梯度走一小步」，函数值就会下降。点击左图可直接设定起点。</p>
+
+    <div class="formula">x<sub>n+1</sub> = x<sub>n</sub> − <b>η</b> · f′(x<sub>n</sub>)</div>
+
+    <div class="ctrl">
+      <div class="head"><label for="lr">学习率 η（步长）</label><b id="lrVal">0.10</b></div>
+      <input type="range" id="lr" min="0.02" max="1" step="0.01" value="0.1">
+    </div>
+
+    <div class="ctrl">
+      <div class="head"><label for="x0">起点 x₀</label><b id="x0Val">-1.80</b></div>
+      <input type="range" id="x0" min="-2" max="2" step="0.05" value="-1.8">
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span>当前 x</span><b class="hl" id="curX">-1.800</b></div>
+      <div class="stat"><span>f(x)</span><b id="curY">0.000</b></div>
+      <div class="stat"><span>梯度 f′(x)</span><b class="gr" id="curG">0.000</b></div>
+      <div class="stat"><span>迭代步数</span><b id="curN">0</b></div>
+    </div>
+
+    <div class="btns">
+      <button class="primary" id="play">▶ 开始</button>
+      <button id="stepBtn">单步</button>
+      <button id="reset">重置</button>
+    </div>
+
+    <div class="status" id="status">调整参数，然后点击「开始」</div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- 1. 函数定义 ---------- */
+  // f(x) = x⁴/4 − x²/2  —— 有两个极小值（x = ±1）和一个局部极大值（x = 0）
+  const f  = x => 0.25 * x * x * x * x - 0.5 * x * x;
+  const df = x => x * x * x - x;
+
+  const view = { xmin: -2.1, xmax: 2.1, ymin: -0.8, ymax: 2.8 };
+  const PAD  = { l: 58, r: 34, t: 34, b: 48 };
+
+  /* ---------- 2. 画布 ---------- */
+  const stage = document.getElementById('stage');
+  const cv    = document.getElementById('cv');
+  const ctx   = cv.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    DPR = window.devicePixelRatio || 1;
+    W = Math.max(120, r.width);
+    H = Math.max(120, r.height);
+    cv.width  = Math.round(W * DPR);
+    cv.height = Math.round(H * DPR);
+    cv.style.width  = W + 'px';
+    cv.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  const X = x => PAD.l + (x - view.xmin) / (view.xmax - view.xmin) * (W - PAD.l - PAD.r);
+  const Y = y => H - PAD.b - (y - view.ymin) / (view.ymax - view.ymin) * (H - PAD.t - PAD.b);
+
+  /* ---------- 3. 状态 ---------- */
+  const state = {
+    x0: -1.8,
+    x: -1.8,
+    lr: 0.1,
+    step: 0,
+    running: false,
+    done: false,
+    history: []
+  };
+  let displayX = state.x;   // 用于平滑动画的显示位置
+
+  /* ---------- 4. 绘制 ---------- */
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0c1322');
+    g.addColorStop(1, '#090d16');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function drawGrid() {
+    ctx.strokeStyle = 'rgba(120,155,210,0.09)';
+    ctx.lineWidth = 1;
+    for (let gx = -2; gx <= 2.0001; gx += 0.5) {
+      if (Math.abs(gx) < 1e-9) continue;
+      const px = X(gx);
+      ctx.beginPath(); ctx.moveTo(px, Y(view.ymin)); ctx.lineTo(px, Y(view.ymax)); ctx.stroke();
+    }
+    for (let gy = -0.5; gy <= 2.5001; gy += 0.5) {
+      if (Math.abs(gy) < 1e-9) continue;
+      const py = Y(gy);
+      ctx.beginPath(); ctx.moveTo(X(view.xmin), py); ctx.lineTo(X(view.xmax), py); ctx.stroke();
+    }
+  }
+
+  function drawAxes() {
+    ctx.strokeStyle = 'rgba(140,175,225,0.4)';
+    ctx.lineWidth = 1.4;
+
+    // x 轴
+    ctx.beginPath();
+    ctx.moveTo(X(view.xmin), Y(0));
+    ctx.lineTo(X(view.xmax), Y(0));
+    ctx.stroke();
+
+    // y 轴
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(view.ymin));
+    ctx.lineTo(X(0), Y(view.ymax));
+    ctx.stroke();
+
+    // 刻度
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(150,178,220,0.7)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let gx = -2; gx <= 2; gx++) {
+      if (gx === 0) continue;
+      ctx.fillText(String(gx), X(gx), Y(0) + 7);
+    }
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (const gy of [-0.5, 0.5, 1, 1.5, 2]) {
+      ctx.fillText(String(gy), X(0) - 7, Y(gy));
+    }
+
+    // 轴名称
+    ctx.fillStyle = 'rgba(150,178,220,0.85)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.font = '13px ui-monospace, monospace';
+    ctx.fillText('x', X(view.xmax) - 6, Y(0) - 8);
+    ctx.fillText('f(x)', X(0) + 10, Y(view.ymax) + 4);
+  }
+
+  function drawCurve() {
+    ctx.beginPath();
+    const N = 500;
+    for (let i = 0; i <= N; i++) {
+      const x = view.xmin + (view.xmax - view.xmin) * i / N;
+      const px = X(x), py = Y(f(x));
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.6;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(56,189,248,0.65)';
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawTrail() {
+    const h = state.history;
+    if (h.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(X(h[0].x), Y(h[0].y));
+    for (let i = 1; i < h.length; i++) ctx.lineTo(X(h[i].x), Y(h[i].y));
+    ctx.strokeStyle = 'rgba(251,191,36,0.30)';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([4, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (let i = 0; i < h.length - 1; i++) {
+      ctx.beginPath();
+      ctx.arc(X(h[i].x), Y(h[i].y), 2.8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(251,191,36,0.45)';
+      ctx.fill();
+    }
+  }
+
+  function drawTangent() {
+    const x = displayX, y = f(x), m = df(x);
+    const d = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(X(x - d), Y(y - m * d));
+    ctx.lineTo(X(x + d), Y(y + m * d));
+    ctx.strokeStyle = 'rgba(244,114,182,0.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function arrow(x1, y1, x2, y2, color) {
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    const L = 9;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - L * Math.cos(a - 0.42), y2 - L * Math.sin(a - 0.42));
+    ctx.lineTo(x2 - L * Math.cos(a + 0.42), y2 - L * Math.sin(a + 0.42));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawStepArrow() {
+    const x = displayX, y = f(x), m = df(x);
+    const nx = x - state.lr * m;
+    const p1 = X(x), p2 = X(nx);
+    if (Math.abs(p2 - p1) < 2) return;
+    arrow(p1, Y(y), p2, Y(y), 'rgba(52,211,153,0.9)');
+  }
+
+  function drawPoint() {
+    const x = displayX, y = f(x);
+    const px = X(x), py = Y(y);
+
+    // 光晕
+    ctx.beginPath();
+    ctx.arc(px, py, 17, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(251,191,36,0.13)';
+    ctx.fill();
+
+    // 到 x 轴的虚线
+    ctx.beginPath();
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = 'rgba(251,191,36,0.30)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(px, py);
+    ctx.lineTo(px, Y(0));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 圆点
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0f1523';
+    ctx.stroke();
+
+    // 标签
+    ctx.font = '600 13px ui-monospace, monospace';
+    ctx.fillStyle = '#fbbf24';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x = ' + x.toFixed(2), px + 13, py - 9);
+  }
+
+  function drawTitle() {
+    ctx.font = '13px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(140,175,225,0.55)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('f(x) = x⁴/4 − x²/2', PAD.l + 4, PAD.t - 24);
+  }
+
+  function draw() {
+    drawBackground();
+    drawGrid();
+    drawAxes();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(PAD.l, PAD.t - 4, W - PAD.l - PAD.r, H - PAD.t - PAD.b + 8);
+    ctx.clip();
+
+    drawCurve();
+    drawTrail();
+    drawTangent();
+    drawStepArrow();
+    drawPoint();
+
+    ctx.restore();
+
+    drawTitle();
+  }
+
+  /* ---------- 5. 逻辑 ---------- */
+  const elX = document.getElementById('curX');
+  const elY = document.getElementById('curY');
+  const elG = document.getElementById('curG');
+  const elN = document.getElementById('curN');
+  const elLrVal = document.getElementById('lrVal');
+  const elX0Val = document.getElementById('x0Val');
+  const elStatus = document.getElementById('status');
+  const playBtn = document.getElementById('play');
+  const stepBtn = document.getElementById('stepBtn');
+  const resetBtn = document.getElementById('reset');
+  const lrInput = document.getElementById('lr');
+  const x0Input = document.getElementById('x0');
+
+  function updateUI() {
+    elX.textContent = state.x.toFixed(3);
+    elY.textContent = f(state.x).toFixed(3);
+    elG.textContent = df(state.x).toFixed(3);
+    elN.textContent = state.step;
+  }
+
+  function setStatus(text, cls) {
+    elStatus.textContent = text;
+    elStatus.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  function reset() {
+    state.x = state.x0;
+    state.step = 0;
+    state.running = false;
+    state.done = false;
+    state.history = [{ x: state.x, y: f(state.x) }];
+    displayX = state.x;
+    playBtn.textContent = '▶ 开始';
+    setStatus('调整参数，然后点击「开始」');
+    updateUI();
+  }
+
+  function doStep() {
+    if (state.done) return;
+
+    const g = df(state.x);
+    const nx = state.x - state.lr * g;
+
+    if (!isFinite(nx) || Math.abs(nx) > 3.2) {
+      state.done = true;
+      state.running = false;
+      playBtn.textContent = '▶ 开始';
+      setStatus('⚠ 发散了！学习率 η 太大', 'warn');
+      return;
+    }
+
+    state.x = nx;
+    state.step++;
+    state.history.push({ x: nx, y: f(nx) });
+    updateUI();
+
+    if (Math.abs(df(state.x)) < 0.015) {
+      state.done = true;
+      state.running = false;
+      playBtn.textContent = '▶ 开始';
+      setStatus('✓ 已收敛到极小值点附近', 'ok');
+    } else {
+      setStatus('沿负梯度方向前进一步…');
+    }
+  }
+
+  /* ---------- 6. 事件 ---------- */
+  playBtn.addEventListener('click', () => {
+    if (state.done) reset();
+    state.running = !state.running;
+    playBtn.textContent = state.running ? '⏸ 暂停' : '▶ 开始';
+    if (state.running) setStatus('沿负梯度方向前进一步…');
+  });
+
+  stepBtn.addEventListener('click', () => {
+    if (state.done) reset();
+    state.running = false;
+    playBtn.textContent = '▶ 开始';
+    doStep();
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  lrInput.addEventListener('input', e => {
+    state.lr = parseFloat(e.target.value);
+    elLrVal.textContent = state.lr.toFixed(2);
+  });
+
+  x0Input.addEventListener('input', e => {
+    state.x0 = parseFloat(e.target.value);
+    elX0Val.textContent = state.x0.toFixed(2);
+    reset();
+  });
+
+  // 点击画布直接设定起点
+  cv.addEventListener('pointerdown', e => {
+    const r = cv.getBoundingClientRect();
+    const px = e.clientX - r.left;
+    const plotW = W - PAD.l - PAD.r;
+    let x = view.xmin + (px - PAD.l) / plotW * (view.xmax - view.xmin);
+    x = Math.max(-2, Math.min(2, x));
+    x = Math.round(x * 20) / 20;
+    state.x0 = x;
+    x0Input.value = x;
+    elX0Val.textContent = x.toFixed(2);
+    reset();
+  });
+
+  /* ---------- 7. 主循环 ---------- */
+  let lastTs = 0;
+  let acc = 0;
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(64, ts - lastTs);
+    lastTs = ts;
+
+    if (state.running && !state.done) {
+      acc += dt;
+      if (acc >= 430) { acc = 0; doStep(); }
+    }
+
+    // 平滑缓动
+    const k = 1 - Math.exp(-dt / 1000 * 14);
+    displayX += (state.x - displayX) * k;
+    if (Math.abs(state.x - displayX) < 0.0008) displayX = state.x;
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- 8. 启动 ---------- */
+  new ResizeObserver(resize).observe(stage);
+  resize();
+  reset();
+  requestAnimationFrame(loop);
+
+  window.addEventListener('resize', resize);
+})();
+</script>
+</body>
+</html>
