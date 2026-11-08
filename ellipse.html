@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xᵀAx 与 xᵀBx 的二维截面形状</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; padding: 24px 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    background: #0e1117; color: #e6edf3;
+    font-family: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: .3px; }
+  .wrap { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  canvas {
+    background: #12161f; border: 1px solid #232a36; border-radius: 14px;
+    display: block; width: min(620px, 88vw); height: min(620px, 88vw);
+  }
+  .panel {
+    width: 280px; background: #12161f; border: 1px solid #232a36;
+    border-radius: 14px; padding: 16px 18px 18px;
+  }
+  .row { margin: 14px 0; display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+  .row label { display: flex; justify-content: space-between; color: #9fb0c5; }
+  .row label b { color: #e6edf3; font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: #4da3ff; cursor: pointer; }
+  .legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; margin-top: 4px; }
+  .legend span { display: flex; align-items: center; gap: 9px; color: #c3cfdd; }
+  .swatch { width: 22px; height: 3px; border-radius: 2px; flex: none; }
+  pre {
+    margin: 14px 0 0; padding: 12px; font-size: 12px; line-height: 1.55;
+    background: #0b0f15; border: 1px solid #1e2530; border-radius: 10px;
+    color: #a8b8cc; font-family: ui-monospace, Consolas, monospace; overflow-x: auto;
+  }
+  .note { font-size: 12px; line-height: 1.7; color: #8695a9; margin-top: 12px; }
+  .note code { color: #ffb37d; }
+</style>
+</head>
+<body>
+
+<h1>xᵀAx = 1 与 xᵀBx = 1 的二维截面形状（B = HᵀAH）</h1>
+
+<div class="wrap">
+  <canvas id="cv"></canvas>
+
+  <div class="panel">
+    <div class="row">
+      <label><span>a₁（A 第 1 对角元）</span><b id="v-a1">1.00</b></label>
+      <input type="range" id="s-a1" min="0.20" max="4" step="0.01" value="1">
+    </div>
+    <div class="row">
+      <label><span>a₂（A 第 2 对角元）</span><b id="v-a2">0.25</b></label>
+      <input type="range" id="s-a2" min="0.20" max="4" step="0.01" value="0.25">
+    </div>
+    <div class="row">
+      <label><span>θ（H 的旋转角）</span><b id="v-th">30°</b></label>
+      <input type="range" id="s-th" min="0" max="180" step="1" value="30">
+    </div>
+
+    <div class="legend">
+      <span><i class="swatch" style="background:#4da3ff"></i>xᵀAx = 1（轴对齐椭圆）</span>
+      <span><i class="swatch" style="background:#ff8a4c"></i>xᵀBx = 1（旋转后椭圆）</span>
+      <span><i class="swatch" style="background:#8b9bb0"></i>坐标轴 x₁ / x₂</span>
+    </div>
+
+    <pre id="matOut"></pre>
+
+    <div class="note">
+      A 是<b>对角</b>矩阵，等值线 <code>xᵀAx=1</code> 是半轴为
+      <code>1/√a₁</code>、<code>1/√a₂</code> 的轴对齐椭圆。<br>
+      <code>B = HᵀAH</code> 是 A 的正交相似变换，特征值不变，
+      椭圆<b>形状（半轴长度）完全相同</b>，只整体旋转了 −θ。
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const cv  = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  const state = { a1: 1.0, a2: 0.25, theta: 30 };
+
+  /* ---------- 工具：带箭头的线 ---------- */
+  function arrow(x0, y0, x1, y1, color, w) {
+    ctx.strokeStyle = color;
+    ctx.fillStyle   = color;
+    ctx.lineWidth   = w;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    const L = 11, a = 0.36;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - L * Math.cos(ang - a), y1 - L * Math.sin(ang - a));
+    ctx.lineTo(x1 - L * Math.cos(ang + a), y1 - L * Math.sin(ang + a));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /* ---------- 主绘制 ---------- */
+  function draw() {
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return;
+    ctx.clearRect(0, 0, W, H);
+
+    const a1 = state.a1, a2 = state.a2;
+    const th = state.theta * Math.PI / 180;
+    const c = Math.cos(th), s = Math.sin(th);
+    const r1 = 1 / Math.sqrt(a1);   // A 椭圆在 x₁ 方向的半轴
+    const r2 = 1 / Math.sqrt(a2);   // A 椭圆在 x₂ 方向的半轴
+
+    /* 世界坐标 -> 像素坐标 */
+    const cx = W / 2, cy = H / 2;
+    const R = Math.max(r1, r2) * 1.45;
+    const scale = Math.min(W, H) / (2 * R);
+    const X = x => cx + x * scale;
+    const Y = y => cy - y * scale;
+
+    /* --- 网格 --- */
+    ctx.strokeStyle = '#1a2029';
+    ctx.lineWidth = 1;
+    const n = Math.ceil(R) + 1;
+    ctx.beginPath();
+    for (let k = -n; k <= n; k++) {
+      ctx.moveTo(X(k), 0); ctx.lineTo(X(k), H);
+      ctx.moveTo(0, Y(k)); ctx.lineTo(W, Y(k));
+    }
+    ctx.stroke();
+
+    /* --- 坐标轴 --- */
+    arrow(X(-R * 0.96), Y(0), X(R * 0.96), Y(0), '#48566e', 1.5);
+    arrow(X(0), Y(-R * 0.96), X(0), Y(R * 0.96), '#48566e', 1.5);
+
+    ctx.fillStyle = '#93a3b8';
+    ctx.font = '13px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillText('x₁', X(R * 0.96) - 20, Y(0) + 21);
+    ctx.fillText('x₂', X(0) + 11, Y(R * 0.96) + 5);
+
+    /* --- 采样两条等值线 --- */
+    // A 椭圆上的点：p(t) = ( r1·cos t , r2·sin t )
+    // B 椭圆上的点：x = Hᵀp  （因为 xᵀBx = (Hx)ᵀA(Hx)）
+    const N = 300;
+    const ptA = [], ptB = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N * Math.PI * 2;
+      const p1 = r1 * Math.cos(t);
+      const p2 = r2 * Math.sin(t);
+      ptA.push([p1, p2]);
+      ptB.push([c * p1 + s * p2, -s * p1 + c * p2]);   // Hᵀ = [[c, s], [-s, c]]
+    }
+
+    function path(pts) {
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const px = X(pts[i][0]), py = Y(pts[i][1]);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    /* --- A 的等值线 --- */
+    path(ptA);
+    ctx.fillStyle = 'rgba(77,163,255,0.10)'; ctx.fill();
+    path(ptA);
+    ctx.strokeStyle = '#4da3ff'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    /* --- B 的等值线 --- */
+    path(ptB);
+    ctx.fillStyle = 'rgba(255,138,76,0.10)'; ctx.fill();
+    path(ptB);
+    ctx.strokeStyle = '#ff8a4c'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    /* --- 主轴（特征向量方向） --- */
+    ctx.setLineDash([5, 5]);
+
+    // A 的主轴：e₁、e₂
+    ctx.strokeStyle = 'rgba(77,163,255,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(-r1), Y(0));  ctx.lineTo(X(r1), Y(0));  ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(0), Y(-r2));  ctx.lineTo(X(0), Y(r2));  ctx.stroke();
+
+    // B 的主轴：Hᵀe₁ = (c, −s)，Hᵀe₂ = (s, c)
+    const u1x =  c, u1y = -s;
+    const u2x =  s, u2y =  c;
+    ctx.strokeStyle = 'rgba(255,138,76,0.6)';
+    ctx.beginPath(); ctx.moveTo(X(-r1*u1x), Y(-r1*u1y)); ctx.lineTo(X(r1*u1x), Y(r1*u1y)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(-r2*u2x), Y(-r2*u2y)); ctx.lineTo(X(r2*u2x), Y(r2*u2y)); ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    /* --- 原点与文字标注 --- */
+    ctx.fillStyle = '#8b9bb0';
+    ctx.beginPath(); ctx.arc(X(0), Y(0), 3, 0, Math.PI * 2); ctx.fill();
+
+    ctx.font = 'bold 13px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillStyle = '#6db4ff';
+    ctx.fillText('xᵀAx = 1', X(r1 * 0.62) + 8, Y(0) - 12);
+
+    ctx.fillStyle = '#ffa270';
+    ctx.fillText('xᵀBx = 1', X(r1 * u1x * 0.62) + 8, Y(r1 * u1y * 0.62) - 12);
+  }
+
+  /* ---------- 矩阵数值面板 ---------- */
+  function updateInfo() {
+    const a1 = state.a1, a2 = state.a2;
+    const th = state.theta * Math.PI / 180;
+    const c = Math.cos(th), s = Math.sin(th);
+
+    // B = Hᵀ A H ，H = [[c, -s], [s, c]]
+    const b11 = a1 * c * c + a2 * s * s;
+    const b12 = (a2 - a1) * s * c;
+    const b22 = a1 * s * s + a2 * c * c;
+
+    const f = v => (Math.abs(v) < 5e-4 ? 0 : v).toFixed(2).padStart(6);
+
+    document.getElementById('matOut').textContent =
+`A = ⎡${f(a1)} ${f(0)} ⎤
+    ⎣${f(0)} ${f(a2)} ⎦
+
+H = ⎡${f(c)} ${f(-s)} ⎤
+    ⎣${f(s)} ${f(c)} ⎦
+
+B = HᵀAH
+  = ⎡${f(b11)} ${f(b12)} ⎤
+    ⎣${f(b12)} ${f(b22)} ⎦
+
+tr(B) = ${(b11 + b22).toFixed(2)}   det(B) = ${(b11 * b22 - b12 * b12).toFixed(2)}`;
+  }
+
+  /* ---------- 尺寸与重绘 ---------- */
+  function resizeAndDraw() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    cv.width  = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  /* ---------- 交互 ---------- */
+  function bind(id, key, label, fmt) {
+    const el  = document.getElementById(id);
+    const out = document.getElementById(label);
+    el.addEventListener('input', () => {
+      state[key] = parseFloat(el.value);
+      out.textContent = fmt(state[key]);
+      draw();
+      updateInfo();
+    });
+  }
+
+  bind('s-a1', 'a1',    'v-a1', v => v.toFixed(2));
+  bind('s-a2', 'a2',    'v-a2', v => v.toFixed(2));
+  bind('s-th', 'theta', 'v-th', v => v.toFixed(0) + '°');
+
+  window.addEventListener('resize', resizeAndDraw);
+
+  updateInfo();
+  resizeAndDraw();
+})();
+</script>
+</body>
+</html>
