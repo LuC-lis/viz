@@ -36,3 +36,4 @@ git add . && git commit -m "add widget" && git push
 | `canyon.html` | 病态二次函数 `f(x,y)=0.5(10x²+y²)` 上的 SGD 收敛过程（Plotly 3D 曲面 + 轨迹） |
 | `gradient-descent.html` | 一维双井函数 `f(x)=x⁴/4−x²/2` 的梯度下降：切线、负梯度箭头、收敛轨迹，可调 η / x₀，点画布直接换起点 |
 | `ellipse.html` | `xᵀAx=1` 与 `xᵀBx=1` 的二维截面形状（`B = HᵀAH`）：调 `a₁, a₂, θ`，看对称矩阵 = 正交 × 对角如何旋转椭圆 |
+| `fem-h1.html` | 有限元中的分片线性函数（`H¹` 空间）3D 演示：蓝色分片平面拼出的折角曲面 vs 红色光滑解，Three.js + OrbitControls |
